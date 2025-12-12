@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChainForensics - Blockchain Analysis Dashboard</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-green: #238636;
+            --accent-red: #f85149;
+            --accent-purple: #a371f7;
+            --accent-orange: #d29922;
+            --accent-yellow: #f0b429;
+            --border-color: #30363d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+
+        .logo-icon {
+            font-size: 2rem;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--bg-tertiary);
+            border-radius: 20px;
+            font-size: 0.875rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+        }
+
+        .status-dot.disconnected {
+            background: var(--accent-red);
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            min-height: calc(100vh - 65px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            margin-bottom: 24px;
+        }
+
+        .sidebar-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            font-family: monospace;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #4c9aed;
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-donate {
+            background: linear-gradient(135deg, var(--accent-orange), var(--accent-yellow));
+            color: #000;
+            font-weight: 600;
+        }
+
+        .btn-donate:hover {
+            background: linear-gradient(135deg, #e09000, #f5c842);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Content Area */
+        .content {
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Timeline */
+        .timeline-event {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .timeline-event:last-child {
+            border-bottom: none;
+        }
+
+        .timeline-date {
+            width: 100px;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .timeline-bar-container {
+            flex: 1;
+            padding: 0 16px;
+        }
+
+        .timeline-bar {
+            height: 24px;
+            background: linear-gradient(90deg, var(--accent-green), #2ea043);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .timeline-bar.coinjoin {
+            background: linear-gradient(90deg, var(--accent-red), #da3633);
+        }
+
+        .timeline-bar.unspent {
+            background: linear-gradient(90deg, var(--accent-blue), #4c9aed);
+        }
+
+        .timeline-details {
+            width: 250px;
+            text-align: right;
+        }
+
+        .timeline-value {
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+
+        .timeline-status {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        /* Transaction Details */
+        .tx-details {
+            display: grid;
+            gap: 16px;
+        }
+
+        .tx-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tx-row:last-child {
+            border-bottom: none;
+        }
+
+        .tx-label {
+            color: var(--text-secondary);
+        }
+
+        .tx-value {
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        .tx-value.positive {
+            color: var(--accent-green);
+        }
+
+        .tx-value.negative {
+            color: var(--accent-red);
+        }
+
+        /* CoinJoin Badge */
+        .cj-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .cj-badge.high {
+            background: rgba(248, 81, 73, 0.2);
+            color: var(--accent-red);
+        }
+
+        .cj-badge.medium {
+            background: rgba(210, 153, 34, 0.2);
+            color: var(--accent-orange);
+        }
+
+        .cj-badge.low {
+            background: rgba(35, 134, 54, 0.2);
+            color: var(--accent-green);
+        }
+
+        /* IO Tables */
+        .io-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        .io-table th,
+        .io-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .io-table th {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .io-table td.mono {
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Privacy Score */
+        .privacy-score {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .score-circle {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 700;
+            border: 4px solid;
+        }
+
+        .score-circle.good {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .score-circle.moderate {
+            border-color: var(--accent-orange);
+            color: var(--accent-orange);
+        }
+
+        .score-circle.poor {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        .score-details {
+            flex: 1;
+        }
+
+        .score-rating {
+            font-size: 1.25rem;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .score-summary {
+            color: var(--text-secondary);
+            margin: 8px 0;
+        }
+
+        /* Factor List */
+        .factor-list {
+            list-style: none;
+            margin-top: 16px;
+        }
+
+        .factor-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0;
+            font-size: 0.875rem;
+        }
+
+        .factor-impact {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.75rem;
+        }
+
+        .factor-impact.positive {
+            background: rgba(35, 134, 54, 0.2);
+            color: var(--accent-green);
+        }
+
+        .factor-impact.negative {
+            background: rgba(248, 81, 73, 0.2);
+            color: var(--accent-red);
+        }
+
+        /* Donation Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+            position: relative;
+            text-align: center;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: var(--bg-tertiary);
+            border: none;
+            color: var(--text-secondary);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--accent-orange);
+        }
+
+        .qr-container {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            display: inline-block;
+            margin-bottom: 16px;
+        }
+
+        .qr-container img {
+            width: 200px;
+            height: 200px;
+            display: block;
+        }
+
+        .donation-address {
+            background: var(--bg-tertiary);
+            padding: 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            word-break: break-all;
+            margin-bottom: 12px;
+            color: var(--accent-blue);
+        }
+
+        .copy-btn {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: #4c9aed;
+        }
+
+        .copy-btn.copied {
+            background: var(--accent-green);
+        }
+
+        .modal-footer {
+            margin-top: 16px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Address Info Card */
+        .address-balance {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .balance-amount {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-green);
+        }
+
+        .balance-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .utxo-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .utxo-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 0.875rem;
+        }
+
+        .utxo-txid {
+            font-family: monospace;
+            color: var(--accent-blue);
+        }
+
+        .utxo-value {
+            font-weight: 600;
+        }
+
+        .dust-warning {
+            background: rgba(248, 81, 73, 0.1);
+            border: 1px solid var(--accent-red);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .dust-warning-title {
+            color: var(--accent-red);
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <span class="logo-icon">🔗</span>
+            <span>ChainForensics</span>
+        </div>
+        <div class="header-right">
+            <div class="status-badge">
+                <div class="status-dot" id="status-dot"></div>
+                <span id="status-text">Connecting...</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">Transaction Analysis</div>
+                <div class="input-group">
+                    <label for="txid-input">Transaction ID</label>
+                    <input type="text" id="txid-input" placeholder="Enter txid..." />
+                </div>
+                <div class="input-group">
+                    <label for="vout-input">Output Index (vout)</label>
+                    <input type="number" id="vout-input" value="0" min="0" />
+                </div>
+                <button class="btn btn-primary" onclick="analyzeTransaction()">
+                    🔍 Analyze Transaction
+                </button>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">UTXO Tracing</div>
+                <div class="input-group">
+                    <label for="trace-direction">Direction</label>
+                    <select id="trace-direction">
+                        <option value="forward">Forward (where did it go?)</option>
+                        <option value="backward">Backward (where did it come from?)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="trace-depth">Max Depth</label>
+                    <input type="number" id="trace-depth" value="10" min="1" max="50" />
+                </div>
+                <button class="btn btn-primary" onclick="traceUTXO()">
+                    🔎 Trace UTXO
+                </button>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Quick Actions</div>
+                <button class="btn btn-secondary" onclick="detectCoinJoin()" style="margin-bottom: 8px;">
+                    🔀 Detect CoinJoin
+                </button>
+                <button class="btn btn-secondary" onclick="calculatePrivacy()" style="margin-bottom: 8px;">
+                    🛡️ Privacy Score
+                </button>
+                <button class="btn btn-secondary" onclick="showTimeline()">
+                    📊 Timeline View
+                </button>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Address Lookup</div>
+                <div class="input-group">
+                    <label for="address-input">Bitcoin Address</label>
+                    <input type="text" id="address-input" placeholder="bc1q..." />
+                </div>
+                <button class="btn btn-secondary" onclick="getAddressInfo()" style="margin-bottom: 8px;">
+                    💰 Get Balance & UTXOs
+                </button>
+                <button class="btn btn-secondary" onclick="checkDustAttack()" style="margin-bottom: 8px;">
+                    🔬 Check Dust Attack
+                </button>
+                <button class="btn btn-secondary" onclick="validateAddress()">
+                    ✓ Validate Address
+                </button>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">Support</div>
+                <button class="btn btn-donate" onclick="openDonationModal()">
+                    🍺 Buy me a Drink
+                </button>
+            </div>
+        </aside>
+
+        <main class="content">
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="block-height">-</div>
+                    <div class="stat-label">Block Height</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="chain-type">-</div>
+                    <div class="stat-label">Network</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="sync-progress">-</div>
+                    <div class="stat-label">Sync Progress</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="api-status">-</div>
+                    <div class="stat-label">API Status</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="electrs-status">-</div>
+                    <div class="stat-label">Electrs</div>
+                </div>
+            </div>
+
+            <div id="results-container">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📋 Analysis Results</div>
+                    </div>
+                    <div class="card-body">
+                        <p style="color: var(--text-secondary); text-align: center; padding: 40px;">
+                            Enter a transaction ID and click "Analyze Transaction" to begin.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Donation Modal -->
+    <div class="modal-overlay" id="donation-modal">
+        <div class="modal">
+            <button class="modal-close" onclick="closeDonationModal()">×</button>
+            <div class="modal-title">🍺 Buy me a Drink</div>
+            <div class="qr-container">
+                <!-- Place your QR code image at: chainforensics/frontend/public/qr-code.png -->
+                <img src="qr-code.png" alt="Bitcoin Donation QR Code" id="qr-image" />
+            </div>
+            <p style="color: var(--text-secondary); margin-bottom: 12px;">
+                This is the way:
+            </p>
+            <div class="donation-address" id="donation-address">
+                bc1qwl04jc4ampzn654yuzyru7e34d2e6qms42ee3t
+            </div>
+            <button class="copy-btn" onclick="copyAddress()" id="copy-btn">
+                📋 Copy Address
+            </button>
+            <div class="modal-footer">
+                Thank you for your support! 🙏
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE = window.location.origin + '/api/v1';
+        
+        // Your donation address - CHANGE THIS TO YOUR OWN ADDRESS
+        const DONATION_ADDRESS = 'bc1qwl04jc4ampzn654yuzyru7e34d2e6qms42ee3t';
+        
+        // State
+        let currentTxid = null;
+        let currentTraceData = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('donation-address').textContent = DONATION_ADDRESS;
+            checkHealth();
+            setInterval(checkHealth, 30000);
+        });
+
+        // API Helper
+        async function apiCall(endpoint, params = {}) {
+            const url = new URL(`${API_BASE}${endpoint}`);
+            Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+            
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'API Error');
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
+        }
+
+        // Health Check
+        async function checkHealth() {
+            try {
+                const health = await apiCall('/health');
+                const dot = document.getElementById('status-dot');
+                const text = document.getElementById('status-text');
+                
+                if (health.status === 'healthy') {
+                    dot.classList.remove('disconnected');
+                    text.textContent = 'Connected';
+                    
+                    const btc = health.components?.bitcoin_core;
+                    if (btc) {
+                        document.getElementById('block-height').textContent = btc.blocks?.toLocaleString() || '-';
+                        document.getElementById('chain-type').textContent = btc.chain || '-';
+                        document.getElementById('sync-progress').textContent = 
+                            btc.verification_progress ? `${(btc.verification_progress * 100).toFixed(2)}%` : '-';
+                    }
+                    document.getElementById('api-status').textContent = 'Online';
+                    
+                    // Electrs status
+                    const electrs = health.components?.electrs;
+                    if (electrs?.status === 'connected') {
+                        document.getElementById('electrs-status').textContent = 'Connected';
+                        document.getElementById('electrs-status').style.color = 'var(--accent-green)';
+                    } else if (electrs?.status === 'not_configured') {
+                        document.getElementById('electrs-status').textContent = 'Not configured';
+                        document.getElementById('electrs-status').style.color = 'var(--text-secondary)';
+                    } else {
+                        document.getElementById('electrs-status').textContent = 'Offline';
+                        document.getElementById('electrs-status').style.color = 'var(--accent-orange)';
+                    }
+                } else {
+                    dot.classList.add('disconnected');
+                    text.textContent = 'Degraded';
+                    document.getElementById('api-status').textContent = 'Degraded';
+                }
+            } catch (error) {
+                document.getElementById('status-dot').classList.add('disconnected');
+                document.getElementById('status-text').textContent = 'Disconnected';
+                document.getElementById('api-status').textContent = 'Offline';
+                document.getElementById('electrs-status').textContent = '-';
+            }
+        }
+
+        // Donation Modal
+        function openDonationModal() {
+            document.getElementById('donation-modal').classList.add('active');
+        }
+
+        function closeDonationModal() {
+            document.getElementById('donation-modal').classList.remove('active');
+        }
+
+        function copyAddress() {
+            navigator.clipboard.writeText(DONATION_ADDRESS).then(() => {
+                const btn = document.getElementById('copy-btn');
+                btn.classList.add('copied');
+                btn.innerHTML = '✓ Copied!';
+                setTimeout(() => {
+                    btn.classList.remove('copied');
+                    btn.innerHTML = '📋 Copy Address';
+                }, 2000);
+            });
+        }
+
+        // Close modal on overlay click
+        document.getElementById('donation-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'donation-modal') {
+                closeDonationModal();
+            }
+        });
+
+        // Analyze Transaction
+        async function analyzeTransaction() {
+            const txid = document.getElementById('txid-input').value.trim();
+            if (!txid) {
+                alert('Please enter a transaction ID');
+                return;
+            }
+            
+            currentTxid = txid;
+            showLoading();
+            
+            try {
+                const tx = await apiCall(`/transactions/${txid}`, { resolve_inputs: true });
+                renderTransactionDetails(tx);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        // Trace UTXO
+        async function traceUTXO() {
+            const txid = document.getElementById('txid-input').value.trim();
+            if (!txid) {
+                alert('Please enter a transaction ID');
+                return;
+            }
+            
+            const direction = document.getElementById('trace-direction').value;
+            const depth = document.getElementById('trace-depth').value;
+            const vout = document.getElementById('vout-input').value;
+            
+            showLoading();
+            
+            try {
+                let result;
+                if (direction === 'forward') {
+                    result = await apiCall('/analysis/trace/forward', { txid, vout, max_depth: depth });
+                } else {
+                    result = await apiCall('/analysis/trace/backward', { txid, max_depth: depth });
+                }
+                
+                currentTraceData = result;
+                renderTraceResults(result, direction);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        // Detect CoinJoin
+        async function detectCoinJoin() {
+            const txid = document.getElementById('txid-input').value.trim();
+            if (!txid) {
+                alert('Please enter a transaction ID');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const result = await apiCall(`/analysis/coinjoin/${txid}`);
+                renderCoinJoinResult(result);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        // Calculate Privacy Score
+        async function calculatePrivacy() {
+            const txid = document.getElementById('txid-input').value.trim();
+            const vout = document.getElementById('vout-input').value;
+            
+            if (!txid) {
+                alert('Please enter a transaction ID');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const result = await apiCall('/analysis/privacy-score', { txid, vout });
+                renderPrivacyScore(result);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        // Show Timeline
+        async function showTimeline() {
+            const txid = document.getElementById('txid-input').value.trim();
+            if (!txid) {
+                alert('Please enter a transaction ID');
+                return;
+            }
+            
+            const direction = document.getElementById('trace-direction').value;
+            const depth = document.getElementById('trace-depth').value;
+            const vout = document.getElementById('vout-input').value;
+            
+            showLoading();
+            
+            try {
+                const result = await apiCall('/visualizations/timeline/json', { 
+                    txid, vout, direction, max_depth: depth 
+                });
+                renderTimeline(result);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        // Validate Address
+        async function validateAddress() {
+            const address = document.getElementById('address-input').value.trim();
+            if (!address) {
+                alert('Please enter a Bitcoin address');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const result = await apiCall(`/addresses/${address}/validate`);
+                renderAddressValidation(result);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        // Get Address Info (Electrs)
+        async function getAddressInfo() {
+            const address = document.getElementById('address-input').value.trim();
+            if (!address) {
+                alert('Please enter a Bitcoin address');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const result = await apiCall(`/addresses/${address}/info`);
+                renderAddressInfo(result);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        // Check Dust Attack (Electrs)
+        async function checkDustAttack() {
+            const address = document.getElementById('address-input').value.trim();
+            if (!address) {
+                alert('Please enter a Bitcoin address');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const result = await apiCall(`/addresses/${address}/dust-check`);
+                renderDustCheck(result);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        // Render Functions
+        function showLoading() {
+            document.getElementById('results-container').innerHTML = `
+                <div class="card">
+                    <div class="card-body">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading...
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            document.getElementById('results-container').innerHTML = `
+                <div class="card">
+                    <div class="card-body">
+                        <p style="color: var(--accent-red); text-align: center; padding: 40px;">
+                            ❌ Error: ${message}
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTransactionDetails(tx) {
+            const html = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📋 Transaction Details</div>
+                        ${tx.is_coinbase ? '<span class="cj-badge medium">⛏️ Coinbase</span>' : ''}
+                    </div>
+                    <div class="card-body">
+                        <div class="tx-details">
+                            <div class="tx-row">
+                                <span class="tx-label">TXID</span>
+                                <span class="tx-value">${tx.txid}</span>
+                            </div>
+                            <div class="tx-row">
+                                <span class="tx-label">Block Height</span>
+                                <span class="tx-value">${tx.block_height?.toLocaleString() || 'Unconfirmed'}</span>
+                            </div>
+                            <div class="tx-row">
+                                <span class="tx-label">Confirmations</span>
+                                <span class="tx-value">${tx.confirmations?.toLocaleString() || '0'}</span>
+                            </div>
+                            <div class="tx-row">
+                                <span class="tx-label">Size</span>
+                                <span class="tx-value">${tx.vsize} vBytes (${tx.size} bytes)</span>
+                            </div>
+                            <div class="tx-row">
+                                <span class="tx-label">Fee</span>
+                                <span class="tx-value">${tx.fee_sats ? tx.fee_sats.toLocaleString() + ' sats' : 'N/A'}</span>
+                            </div>
+                            <div class="tx-row">
+                                <span class="tx-label">Total Output</span>
+                                <span class="tx-value positive">${tx.total_output_btc?.toFixed(8)} BTC</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📥 Inputs (${tx.input_count})</div>
+                    </div>
+                    <div class="card-body">
+                        <table class="io-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Previous TX</th>
+                                    <th>Address</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tx.inputs.map((inp, i) => `
+                                    <tr>
+                                        <td>${i}</td>
+                                        <td class="mono">${inp.txid ? inp.txid.substring(0, 16) + '...' : 'Coinbase'}</td>
+                                        <td class="mono">${inp.address || '-'}</td>
+                                        <td>${inp.value ? inp.value.toFixed(8) + ' BTC' : '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📤 Outputs (${tx.output_count})</div>
+                    </div>
+                    <div class="card-body">
+                        <table class="io-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Address</th>
+                                    <th>Type</th>
+                                    <th>Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tx.outputs.map(out => `
+                                    <tr>
+                                        <td>${out.n}</td>
+                                        <td class="mono">${out.address || 'OP_RETURN'}</td>
+                                        <td>${out.type}</td>
+                                        <td>${out.value_btc.toFixed(8)} BTC</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('results-container').innerHTML = html;
+        }
+
+        function renderTraceResults(result, direction) {
+            const summary = result.summary || {};
+            
+            const html = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${result.nodes?.length || 0}</div>
+                        <div class="stat-label">Transactions Found</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${summary.unspent_count || 0}</div>
+                        <div class="stat-label">Unspent Outputs</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${summary.coinjoin_count || 0}</div>
+                        <div class="stat-label">CoinJoin Transactions</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${result.execution_time_ms}ms</div>
+                        <div class="stat-label">Execution Time</div>
+                    </div>
+                </div>
+
+                ${result.electrs_enabled ? `
+                    <div style="background: rgba(35, 134, 54, 0.1); border: 1px solid var(--accent-green); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                        <span style="color: var(--accent-green);">✓ Electrs Enabled</span> - Forward tracing can follow spending transactions
+                    </div>
+                ` : `
+                    <div style="background: rgba(210, 153, 34, 0.1); border: 1px solid var(--accent-orange); border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                        <span style="color: var(--accent-orange);">⚠ Electrs Not Available</span> - Forward tracing limited (can't find spending transactions)
+                    </div>
+                `}
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🔎 Trace Results (${direction})</div>
+                    </div>
+                    <div class="card-body">
+                        ${result.nodes && result.nodes.length > 0 ? `
+                            <table class="io-table">
+                                <thead>
+                                    <tr>
+                                        <th>Depth</th>
+                                        <th>TXID</th>
+                                        <th>Value</th>
+                                        <th>Status</th>
+                                        <th>CoinJoin</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${result.nodes.slice(0, 50).map(node => `
+                                        <tr>
+                                            <td>${node.depth}</td>
+                                            <td class="mono">${node.txid.substring(0, 16)}...</td>
+                                            <td>${node.value_btc?.toFixed(8) || '?'} BTC</td>
+                                            <td>
+                                                ${node.status === 'unspent' ? '💰 Unspent' : 
+                                                  node.status === 'coinbase' ? '⛏️ Coinbase' : '📤 Spent'}
+                                            </td>
+                                            <td>
+                                                ${node.coinjoin_score > 0.7 ? 
+                                                    `<span class="cj-badge high">🔀 ${(node.coinjoin_score * 100).toFixed(0)}%</span>` :
+                                                    node.coinjoin_score > 0.3 ?
+                                                    `<span class="cj-badge medium">${(node.coinjoin_score * 100).toFixed(0)}%</span>` :
+                                                    '<span class="cj-badge low">No</span>'}
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                            ${result.nodes.length > 50 ? `<p style="margin-top: 16px; color: var(--text-secondary);">Showing 50 of ${result.nodes.length} results</p>` : ''}
+                        ` : '<p style="color: var(--text-secondary);">No results found</p>'}
+                    </div>
+                </div>
+
+                ${result.coinjoin_txids && result.coinjoin_txids.length > 0 ? `
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">🔀 CoinJoin Transactions in Path</div>
+                        </div>
+                        <div class="card-body">
+                            <ul style="list-style: none;">
+                                ${result.coinjoin_txids.map(txid => `
+                                    <li style="padding: 8px 0; font-family: monospace;">
+                                        <span style="color: var(--accent-red);">🔀</span> ${txid}
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+            
+            document.getElementById('results-container').innerHTML = html;
+        }
+
+        function renderCoinJoinResult(result) {
+            const badgeClass = result.score > 0.7 ? 'high' : result.score > 0.3 ? 'medium' : 'low';
+            
+            const html = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🔀 CoinJoin Analysis</div>
+                        <span class="cj-badge ${badgeClass}">
+                            ${result.is_coinjoin ? 'CoinJoin Detected' : 'Not CoinJoin'}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <div class="privacy-score">
+                            <div class="score-circle ${badgeClass}">
+                                ${(result.score * 100).toFixed(0)}%
+                            </div>
+                            <div class="score-details">
+                                <div class="score-rating">${result.protocol || 'No CoinJoin'}</div>
+                                <div class="score-summary">Confidence: ${(result.confidence * 100).toFixed(0)}%</div>
+                            </div>
+                        </div>
+
+                        <h3 style="margin-top: 24px; margin-bottom: 12px;">Transaction Stats</h3>
+                        <div class="tx-details">
+                            <div class="tx-row">
+                                <span class="tx-label">Input Count</span>
+                                <span class="tx-value">${result.transaction_stats?.input_count || 'N/A'}</span>
+                            </div>
+                            <div class="tx-row">
+                                <span class="tx-label">Output Count</span>
+                                <span class="tx-value">${result.transaction_stats?.output_count || 'N/A'}</span>
+                            </div>
+                            <div class="tx-row">
+                                <span class="tx-label">Total Output</span>
+                                <span class="tx-value">${result.transaction_stats?.total_output_btc?.toFixed(8) || 'N/A'} BTC</span>
+                            </div>
+                        </div>
+
+                        ${result.heuristics_matched && result.heuristics_matched.length > 0 ? `
+                            <h3 style="margin-top: 24px; margin-bottom: 12px;">✓ Matched Heuristics</h3>
+                            <ul class="factor-list">
+                                ${result.heuristics_matched.map(h => `
+                                    <li class="factor-item">
+                                        <span class="factor-impact positive">✓</span>
+                                        ${h}
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('results-container').innerHTML = html;
+        }
+
+        function renderPrivacyScore(result) {
+            const scoreClass = result.rating === 'good' ? 'good' : 
+                              result.rating === 'moderate' ? 'moderate' : 'poor';
+            
+            const html = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🛡️ Privacy Score</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="privacy-score">
+                            <div class="score-circle ${scoreClass}">
+                                ${result.score}
+                            </div>
+                            <div class="score-details">
+                                <div class="score-rating">${result.rating} Privacy</div>
+                                <div class="score-summary">${result.summary}</div>
+                            </div>
+                        </div>
+
+                        ${result.factors && result.factors.length > 0 ? `
+                            <h3 style="margin-top: 24px; margin-bottom: 12px;">Privacy Factors</h3>
+                            <ul class="factor-list">
+                                ${result.factors.map(f => `
+                                    <li class="factor-item">
+                                        <span class="factor-impact ${f.impact.startsWith('+') ? 'positive' : 'negative'}">
+                                            ${f.impact}
+                                        </span>
+                                        ${f.description}
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        ` : ''}
+
+                        ${result.recommendations && result.recommendations.length > 0 ? `
+                            <h3 style="margin-top: 24px; margin-bottom: 12px;">💡 Recommendations</h3>
+                            <ul style="list-style: disc; margin-left: 20px; color: var(--text-secondary);">
+                                ${result.recommendations.map(r => `<li style="padding: 4px 0;">${r}</li>`).join('')}
+                            </ul>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('results-container').innerHTML = html;
+        }
+
+        function renderTimeline(result) {
+            const events = result.events || [];
+            
+            if (events.length === 0) {
+                document.getElementById('results-container').innerHTML = `
+                    <div class="card">
+                        <div class="card-body">
+                            <p style="color: var(--text-secondary); text-align: center; padding: 40px;">
+                                No timeline events found
+                            </p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            const maxValue = Math.max(...events.map(e => e.value_btc || 0)) || 1;
+
+            const html = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📊 UTXO Timeline</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="stats-grid" style="margin-bottom: 24px;">
+                            <div class="stat-card">
+                                <div class="stat-value">${events.length}</div>
+                                <div class="stat-label">Events</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${result.coinjoin_events || 0}</div>
+                                <div class="stat-label">CoinJoin Events</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${result.total_value_btc?.toFixed(4) || '0'}</div>
+                                <div class="stat-label">Total BTC</div>
+                            </div>
+                        </div>
+
+                        <div style="overflow-x: auto;">
+                            ${events.map(event => {
+                                const barWidth = Math.max(5, (event.value_btc / maxValue) * 100);
+                                const barClass = event.coinjoin_score > 0.5 ? 'coinjoin' : 
+                                               event.event_type === 'receive' ? 'unspent' : '';
+                                const icon = event.event_type === 'coinjoin' ? '🔀' :
+                                            event.event_type === 'mining' ? '⛏️' :
+                                            event.event_type === 'receive' ? '💰' : '📤';
+                                
+                                return `
+                                    <div class="timeline-event">
+                                        <div class="timeline-date">
+                                            ${event.timestamp ? new Date(event.timestamp).toLocaleDateString() : 'Unknown'}
+                                        </div>
+                                        <div class="timeline-bar-container">
+                                            <div class="timeline-bar ${barClass}" style="width: ${barWidth}%"></div>
+                                        </div>
+                                        <div class="timeline-details">
+                                            <div class="timeline-value">
+                                                ${icon} ${event.value_btc?.toFixed(8) || '?'} BTC
+                                            </div>
+                                            <div class="timeline-status">${event.description}</div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('results-container').innerHTML = html;
+        }
+
+        function renderAddressValidation(result) {
+            const html = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🔍 Address Validation</div>
+                        <span class="cj-badge ${result.is_valid ? 'low' : 'high'}">
+                            ${result.is_valid ? '✓ Valid' : '✗ Invalid'}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <div class="tx-details">
+                            <div class="tx-row">
+                                <span class="tx-label">Address</span>
+                                <span class="tx-value">${result.address}</span>
+                            </div>
+                            <div class="tx-row">
+                                <span class="tx-label">Type</span>
+                                <span class="tx-value">${result.type}</span>
+                            </div>
+                            <div class="tx-row">
+                                <span class="tx-label">Network</span>
+                                <span class="tx-value">${result.network}</span>
+                            </div>
+                            ${result.is_witness !== undefined ? `
+                                <div class="tx-row">
+                                    <span class="tx-label">SegWit</span>
+                                    <span class="tx-value">${result.is_witness ? 'Yes' : 'No'}</span>
+                                </div>
+                            ` : ''}
+                            ${result.witness_version !== undefined ? `
+                                <div class="tx-row">
+                                    <span class="tx-label">Witness Version</span>
+                                    <span class="tx-value">${result.witness_version}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('results-container').innerHTML = html;
+        }
+
+        function renderAddressInfo(result) {
+            const balance = result.balance || {};
+            const utxos = result.utxos || [];
+            const transactions = result.transactions || [];
+            
+            const html = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">💰 Address Info</div>
+                        <span class="cj-badge ${result.electrs_status === 'connected' ? 'low' : 'medium'}">
+                            Electrs: ${result.electrs_status}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        ${result.balance ? `
+                            <div class="address-balance">
+                                <div>
+                                    <div class="balance-amount">${balance.total_btc?.toFixed(8) || '0'} BTC</div>
+                                    <div class="balance-label">Total Balance</div>
+                                </div>
+                                <div style="margin-left: 40px;">
+                                    <div style="color: var(--accent-green);">✓ ${balance.confirmed_btc?.toFixed(8) || '0'} confirmed</div>
+                                    <div style="color: var(--accent-orange);">⏳ ${balance.unconfirmed_btc?.toFixed(8) || '0'} unconfirmed</div>
+                                </div>
+                            </div>
+
+                            <div class="stats-grid" style="margin-bottom: 24px;">
+                                <div class="stat-card">
+                                    <div class="stat-value">${result.transaction_count || 0}</div>
+                                    <div class="stat-label">Transactions</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">${result.utxo_count || 0}</div>
+                                    <div class="stat-label">UTXOs</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">${result.first_seen_height || '-'}</div>
+                                    <div class="stat-label">First Seen</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">${result.last_seen_height || '-'}</div>
+                                    <div class="stat-label">Last Seen</div>
+                                </div>
+                            </div>
+                        ` : `
+                            <p style="color: var(--text-secondary);">Electrs not available. Enable Electrs to see balance and UTXOs.</p>
+                        `}
+
+                        ${utxos.length > 0 ? `
+                            <h3 style="margin-bottom: 12px;">UTXOs (${utxos.length})</h3>
+                            <div class="utxo-list">
+                                ${utxos.slice(0, 20).map(utxo => `
+                                    <div class="utxo-item">
+                                        <div>
+                                            <div class="utxo-txid">${utxo.txid.substring(0, 16)}...#${utxo.vout}</div>
+                                            <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                                                ${utxo.is_confirmed ? `Block ${utxo.height}` : 'Unconfirmed'}
+                                            </div>
+                                        </div>
+                                        <div class="utxo-value">${utxo.value_btc.toFixed(8)} BTC</div>
+                                    </div>
+                                `).join('')}
+                                ${utxos.length > 20 ? `<p style="text-align: center; color: var(--text-secondary);">...and ${utxos.length - 20} more</p>` : ''}
+                            </div>
+                        ` : ''}
+
+                        ${transactions.length > 0 ? `
+                            <h3 style="margin-top: 24px; margin-bottom: 12px;">Recent Transactions</h3>
+                            <table class="io-table">
+                                <thead>
+                                    <tr>
+                                        <th>TXID</th>
+                                        <th>Height</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${transactions.slice(0, 10).map(tx => `
+                                        <tr>
+                                            <td class="mono">${tx.txid.substring(0, 20)}...</td>
+                                            <td>${tx.height || 'Mempool'}</td>
+                                            <td>${tx.is_confirmed ? '✓ Confirmed' : '⏳ Pending'}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('results-container').innerHTML = html;
+        }
+
+        function renderDustCheck(result) {
+            const html = `
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🔬 Dust Attack Check</div>
+                    </div>
+                    <div class="card-body">
+                        ${result.suspicious_count > 0 ? `
+                            <div class="dust-warning">
+                                <div class="dust-warning-title">
+                                    ⚠️ Warning: ${result.suspicious_count} Suspicious UTXO(s) Found
+                                </div>
+                                <p>${result.recommendation}</p>
+                            </div>
+                        ` : `
+                            <div style="background: rgba(35, 134, 54, 0.1); border: 1px solid var(--accent-green); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                                <div style="color: var(--accent-green); font-weight: 600;">
+                                    ✓ No Dust Attack Detected
+                                </div>
+                                <p style="color: var(--text-secondary); margin-top: 8px;">${result.recommendation}</p>
+                            </div>
+                        `}
+
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value">${result.total_utxos}</div>
+                                <div class="stat-label">Total UTXOs</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${result.dust_utxos_count}</div>
+                                <div class="stat-label">Dust UTXOs</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${result.total_dust_value_sats}</div>
+                                <div class="stat-label">Total Dust (sats)</div>
+                            </div>
+                        </div>
+
+                        ${result.suspicious_utxos && result.suspicious_utxos.length > 0 ? `
+                            <h3 style="margin-top: 24px; margin-bottom: 12px;">⚠️ Suspicious UTXOs</h3>
+                            <div class="utxo-list">
+                                ${result.suspicious_utxos.map(utxo => `
+                                    <div class="utxo-item" style="border-left: 3px solid var(--accent-red);">
+                                        <div>
+                                            <div class="utxo-txid">${utxo.txid.substring(0, 16)}...#${utxo.vout}</div>
+                                            <div style="font-size: 0.75rem; color: var(--accent-red);">${utxo.warning}</div>
+                                        </div>
+                                        <div class="utxo-value" style="color: var(--accent-red);">${utxo.value_sats} sats</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <p style="margin-top: 16px; color: var(--accent-orange); font-size: 0.875rem;">
+                                💡 Tip: Do NOT consolidate these UTXOs with your other coins. This will link your addresses together!
+                            </p>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('results-container').innerHTML = html;
+        }
+    </script>
+</body>
+</html>

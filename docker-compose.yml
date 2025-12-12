@@ -1,0 +1,91 @@
+# ChainForensics Docker Compose Configuration
+# Privacy-focused blockchain analysis platform
+
+version: '3.8'
+
+services:
+  # ===========================================
+  # Core API Server
+  # ===========================================
+  chainforensics-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chainforensics-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DEBUG=false
+      - API_PORT=3000
+      - DATABASE_URL=sqlite+aiosqlite:///./data/chainforensics.db
+      # Bitcoin Core RPC - Update these for your Umbrel setup
+      - BITCOIN_RPC_HOST=${BITCOIN_RPC_HOST:-umbrel.local}
+      - BITCOIN_RPC_PORT=${BITCOIN_RPC_PORT:-8332}
+      - BITCOIN_RPC_USER=${BITCOIN_RPC_USER:-umbrel}
+      - BITCOIN_RPC_PASS=${BITCOIN_RPC_PASS:-}
+      - BITCOIN_RPC_TIMEOUT=60
+      # Optional Electrs
+      - ELECTRS_HOST=${ELECTRS_HOST:-}
+      - ELECTRS_PORT=${ELECTRS_PORT:-50001}
+      # Analysis settings
+      - MAX_TRACE_DEPTH=50
+      - DEFAULT_TRACE_DEPTH=10
+      - ENABLE_BACKGROUND_INDEXER=true
+    volumes:
+      - chainforensics-data:/app/data
+    networks:
+      - chainforensics-internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ===========================================
+  # Web Dashboard
+  # ===========================================
+  chainforensics-web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: chainforensics-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - chainforensics-api
+    networks:
+      - chainforensics-internal
+    environment:
+      - API_URL=http://chainforensics-api:3000
+
+  # ===========================================
+  # MCP Server (for Claude Desktop)
+  # ===========================================
+  # Note: MCP uses stdio, run separately with:
+  # docker run -i chainforensics-mcp
+  chainforensics-mcp:
+    build:
+      context: ./mcp
+      dockerfile: Dockerfile
+    container_name: chainforensics-mcp
+    stdin_open: true
+    tty: true
+    networks:
+      - chainforensics-internal
+    depends_on:
+      - chainforensics-api
+    profiles:
+      - mcp  # Only start when explicitly requested
+
+networks:
+  chainforensics-internal:
+    driver: bridge
+    # No external internet access for security
+    internal: false  # Set to true in production for max security
+
+volumes:
+  chainforensics-data:
+    driver: local
