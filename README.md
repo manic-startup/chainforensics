@@ -313,7 +313,7 @@ Contributions are welcome! Help make this Bitcoin chain forensics tool better fo
 - Fork the repo, make your changes, and submit a pull request.
 - Follow basic code style: readable commits, meaningful PR descriptions.
 
-By contributing code, you agree that your contributions are licensed under the same license as this project (AGPL-3.0). Commercial licensing available separately—contact [your email] for details.
+By contributing code, you agree that your contributions are licensed under the same license as this project (AGPL-3.0). Commercial licensing available separately—contact for details.
 
 Thank you for helping build this project!
 
