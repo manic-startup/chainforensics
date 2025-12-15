@@ -17,7 +17,7 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.database import init_db, get_db
-from app.api import transactions, analysis, visualizations, jobs, addresses
+from app.api import transactions, analysis, visualizations, jobs, addresses, kyc
 from app.core.bitcoin_rpc import BitcoinRPC
 from app.workers.indexer import start_background_indexer
 
@@ -183,6 +183,7 @@ app.include_router(analysis.router, prefix="/api/v1/analysis", tags=["Analysis"]
 app.include_router(visualizations.router, prefix="/api/v1/visualizations", tags=["Visualizations"])
 app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["Jobs"])
 app.include_router(addresses.router, prefix="/api/v1/addresses", tags=["Addresses"])
+app.include_router(kyc.router, prefix="/api/v1/kyc", tags=["KYC Privacy Check"])
 
 
 @app.get("/")

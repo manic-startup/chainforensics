@@ -417,10 +417,21 @@ class ElectrsClient:
     async def get_tip(self) -> Dict:
         """Get current blockchain tip."""
         result = await self._call("blockchain.headers.subscribe")
-        return {
-            "height": result.get("height"),
-            "hex": result.get("hex")
-        }
+        # Result can be a dict or sometimes just the header info
+        if isinstance(result, dict):
+            return {
+                "height": result.get("height"),
+                "hex": result.get("hex")
+            }
+        elif isinstance(result, list) and len(result) > 0:
+            # Some servers return [{"height": ..., "hex": ...}]
+            first = result[0] if isinstance(result[0], dict) else {}
+            return {
+                "height": first.get("height"),
+                "hex": first.get("hex")
+            }
+        else:
+            return {"height": None, "hex": None}
     
     # ============== Address/ScriptHash Methods ==============
     
@@ -645,11 +656,12 @@ async def check_electrs_connection() -> Dict:
                 "status": "connected",
                 "host": client.host,
                 "port": client.port,
-                "server": version.get("server_software"),
-                "protocol": version.get("protocol_version"),
-                "tip_height": tip.get("height")
+                "server": version.get("server_software") if isinstance(version, dict) else str(version),
+                "protocol": version.get("protocol_version") if isinstance(version, dict) else "1.4",
+                "tip_height": tip.get("height") if isinstance(tip, dict) else None
             }
     except Exception as e:
+        logger.error(f"Electrs connection check failed: {e}")
         return {
             "status": "error",
             "host": client.host,
