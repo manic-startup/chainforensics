@@ -13,6 +13,7 @@ Claude descktop/docker MCP integration is optional. The App works without it out
 - **Address Validation** - Validate addresses and identify types (P2PKH, P2SH, P2WPKH, P2TR)
 - **Background Jobs** - Queue long-running analyses
 - **MCP Integration** - Use with Claude Desktop for natural language blockchain analysis
+- **KYC Privacy Check** - designed to check if **your withdrawal from a KYC exchange** (like Coinbase, Kraken, Binance, etc.) can be traced to your current holdings.
 
 ## 🏗️ Architecture
 
